@@ -1,0 +1,12 @@
+ironveil/target/
+.env
+*.pem
+*.key
+*.crt
+config.toml
+secrets.toml
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

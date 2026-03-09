@@ -1,0 +1,12 @@
+[package]
+name = "ironveil"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+boringtun = "0.6"
+tun = { version = "0.6", features = ["async"] }
+tokio = { version = "1", features = ["full"] }
+x25519-dalek = "=2.0.0-rc.3"
+rand = "0.8"
+zeroize = "1"
