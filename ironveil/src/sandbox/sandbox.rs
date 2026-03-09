@@ -1,9 +1,15 @@
-use tun::Configuration;
+use boringtun::x25519::{StaticSecret, PublicKey};
+use rand::rngs::OsRng;
 use tokio::net::UdpSocket;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt};
+use tun::Configuration;
 
 #[tokio::main]
 async fn main() {
+    let secret = StaticSecret::random_from_rng(OsRng);
+    let public = PublicKey::from(&secret);
+    println!("public key: {:?}", public);
+
     let mut config = Configuration::default();
 
     config
@@ -34,19 +40,6 @@ async fn main() {
                 println!(" from: {}", addr);
             }
         }
+
     }
-
-    /*
-    let mut buf = [0u8; 1504];
-    loop {
-        let n = dev.read(&mut buf).await.unwrap();
-
-        println!("got packet: {n} bytes");
-        println!("  version/ihl: {:08b}", buf[0]); 
-        println!("  protocol: {}", buf[9]);           
-        println!("  src: {}.{}.{}.{}", buf[12], buf[13], buf[14], buf[15]);
-        println!("  dst: {}.{}.{}.{}", buf[16], buf[17], buf[18], buf[19]);
-    }
-    */
-
 }
