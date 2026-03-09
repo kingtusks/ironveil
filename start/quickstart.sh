@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_PATH="$(dirname "$SCRIPT_DIR")/ironveil"
 
 if [ "$EUID" -ne 0 ]; then
     echo "not running as root, relaunching w/ sudo"
@@ -10,4 +10,5 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "running as root"
+cd "$PROJECT_PATH"
 cargo run --bin ironveil
