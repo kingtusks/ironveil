@@ -11,6 +11,8 @@ x25519-dalek = "=2.0.0-rc.3"
 rand = "0.8"
 zeroize = "1"
 base64 = "0.22.1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
 
 [[bin]]
 name = "server"
@@ -22,8 +24,8 @@ path = "src/bin/client.rs"
 
 [[bin]]
 name = "sandbox"
-path = "sandbox/sandbox.rs"
+path = "src/sandbox/sandbox.rs"
 
 [[bin]]
 name = "keypair"
-path = "sandbox/keypair.rs"
+path = "src/sandbox/keypair.rs"

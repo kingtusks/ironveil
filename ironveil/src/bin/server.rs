@@ -50,9 +50,9 @@ async fn main() {
                     match tunnel.encapsulate(&tun_buf[..n], &mut out_buf) {
                         TunnResult::WriteToNetwork(data) => {
                             socket.send_to(data, addr).await.unwrap();
-                            println!("TUN → encrypted → UDP");
+                            println!("tun > encrypted > udp");
                         }
-                        TunnResult::Err(e) => eprintln!("Encapsulate error: {:?}", e),
+                        TunnResult::Err(e) => eprintln!("encapsulate error: {:?}", e),
                         _ => {}
                     }
                 }
@@ -61,14 +61,14 @@ async fn main() {
                 peer_addr = Some(addr);
                 match tunnel.decapsulate(None, &udp_buf[..n], &mut out_buf) {
                     TunnResult::WriteToTunnelV4(data, _) => {
-                        println!("UDP → decrypted → TUN");
+                        println!("udp > decrypted > tun");
                         dev.write_all(data).await.unwrap();
                     }
                     TunnResult::WriteToNetwork(data) => {
-                        println!("Handshake response sent");
+                        println!("handshake response sent");
                         socket.send_to(data, addr).await.unwrap();
                     }
-                    TunnResult::Err(e) => eprintln!("Decapsulate error: {:?}", e),
+                    TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),
                     _ => {}
                 }
             }
