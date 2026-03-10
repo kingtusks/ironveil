@@ -59,6 +59,7 @@ async fn main() {
                         socket.send_to(data, server_addr).await.unwrap();
                         println!("tun intercepted, encrypted and sent to serv via udp");
                     }
+                    
                     TunnResult::Err(e) => eprintln!("encapsulate err: {:?}", e),
                     _ => {}
                 }
@@ -69,10 +70,12 @@ async fn main() {
                         println!("wrote decrypted ip packet into tun");
                         dev.write_all(data).await.unwrap();
                     }
+
                     TunnResult::WriteToNetwork(data) => {
                         println!("handshake reply sent");
                         socket.send_to(data, server_addr).await.unwrap();
                     }
+
                     TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),
                     _ => {}
                 }

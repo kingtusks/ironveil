@@ -1,4 +1,6 @@
 ironveil/target/
+ironveil/config/server.toml
+ironveil/config/client.toml
 .env
 *.pem
 *.key
