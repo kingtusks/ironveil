@@ -9,7 +9,8 @@ use boringtun::noise::{Tunn, TunnResult};
 #[tokio::main]
 async fn main() {
     let client_secret = StaticSecret::random_from_rng(OsRng);
-    let client_public = PublicKey::from(&client_secret);
+    
+    //let client_public = PublicKey::from(&client_secret);
 
     //let encoded = STANDARD.encode(client_public.as_bytes());
     //println!("{}", encoded);
