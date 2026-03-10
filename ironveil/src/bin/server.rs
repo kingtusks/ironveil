@@ -1,42 +1,39 @@
+use ironveil::config;
+use ironveil::crypto::{public_key_from_base64, secret_key_from_base64};
+use ironveil::tunnel::create_tunnel;
+use boringtun::noise::TunnResult;
 use tokio::net::UdpSocket;
-use rand::rngs::OsRng;
-use tun::Configuration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use x25519_dalek::{PublicKey, StaticSecret};
-use base64::{Engine, engine::general_purpose::STANDARD};
-use boringtun::noise::{Tunn, TunnResult};
+use tun::Configuration;
 
 #[tokio::main]
 async fn main() {
-    let server_secret = StaticSecret::random_from_rng(OsRng);
-    
-    //let server_public = PublicKey::from(&server_secret);
+    let cfg = config::load("config/server.toml")
+        .expect("failed to load server config");
+    let secret = secret_key_from_base64(&cfg.interface.private_key)
+        .expect("invalid private key");
+    let peer_public = public_key_from_base64(&cfg.peer.public_key)
+        .expect("invalid peer public key");
 
-    //let encoded = STANDARD.encode(server_public.as_bytes());
-    //println!("{}", encoded);
-    //server pubkey: YwNKYV92vswoJgf2Y3o84EMgkXQ8NQsDD859wqRSKns=
-
-    let bytes = STANDARD.decode("7Mipe/LgN56gekMQlz6bJ3EQVQyoLnqd2Nal1UWNlg8=").unwrap();
-    let client_public = PublicKey::from(<[u8; 32]>::try_from(bytes.as_slice()).unwrap());
-
-    let mut tunnel = Tunn::new(
-        server_secret,
-        client_public,
-        None,
-        Some(25),
-        0,
-        None
-    ).unwrap();
+    let mut tunnel = create_tunnel(
+        secret,
+        peer_public,
+    ).expect("tunnel (server) couldnt be made");
 
     let mut config = Configuration::default();
     config
-        .address("10.0.0.1")
+        .address(cfg.interface.address.as_str())
         .netmask("255.255.255.0")
         .name("ironveil_server")
         .up();
-    let mut dev = tun::create_as_async(&config).unwrap();
-    let socket = UdpSocket::bind("0.0.0.0:51820").await.unwrap();
-    println!("server listening on port 51820");
+
+    let mut dev = tun::create_as_async(&config).expect("failed to make tun device");
+    let port = cfg.interface.port.unwrap_or(51820);
+    let socket = UdpSocket::bind(format!("0.0.0.0:{}", port))
+        .await
+        .expect("failed to bind udp");
+
+    println!("server listening on port {}", port);
     
     let mut tun_buf: [u8; 1504] = [0; 1504];
     let mut udp_buf: [u8; 1504] = [0; 1504];

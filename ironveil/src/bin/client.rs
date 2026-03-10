@@ -1,48 +1,44 @@
+use ironveil::config;
+use ironveil::crypto::{public_key_from_base64, secret_key_from_base64};
+use ironveil::tunnel::create_tunnel;
+use boringtun::noise::TunnResult;
 use tokio::net::UdpSocket;
-use rand::rngs::OsRng;
-use tun::Configuration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use x25519_dalek::{PublicKey, StaticSecret};
-use base64::{Engine, engine::general_purpose::STANDARD};
-use boringtun::noise::{Tunn, TunnResult};
+use tun::Configuration;
 
 #[tokio::main]
 async fn main() {
-    let client_secret = StaticSecret::random_from_rng(OsRng);
-    
-    //let client_public = PublicKey::from(&client_secret);
+    let cfg = config::load("config/client.toml")
+        .expect("failed to load client config");
+    let secret = secret_key_from_base64(&cfg.interface.private_key)
+        .expect("invalid private key");
+    let peer_public = public_key_from_base64(&cfg.peer.public_key)
+        .expect("invalid peer public key");
 
-    //let encoded = STANDARD.encode(client_public.as_bytes());
-    //println!("{}", encoded);
-    //client pubkey: 7Mipe/LgN56gekMQlz6bJ3EQVQyoLnqd2Nal1UWNlg8=
+    let mut tunnel = create_tunnel(secret, peer_public)
+        .expect("tunnel (client) couldn't be made");
 
-    let bytes = STANDARD.decode("YwNKYV92vswoJgf2Y3o84EMgkXQ8NQsDD859wqRSKns=").unwrap();
-    let server_public = PublicKey::from(<[u8; 32]>::try_from(bytes.as_slice()).unwrap());
-
-    let mut tunnel = Tunn::new(
-        client_secret,
-        server_public,
-        None,
-        Some(25),
-        0,
-        None
-    ).unwrap();
-
-    let mut config = Configuration::default();
-    config
-        .address("10.0.0.2")
+    let mut tun_config = Configuration::default();
+    tun_config
+        .address(cfg.interface.address.as_str())
         .netmask("255.255.255.0")
         .name("ironveil_client")
         .up();
 
-    let mut dev = tun::create_as_async(&config).unwrap();
-    let socket = UdpSocket::bind("0.0.0.0:51821").await.unwrap();
-    let server_addr = "127.0.0.1:51820";
+    let mut dev = tun::create_as_async(&tun_config)
+        .expect("failed to make tun device");
+    let socket = UdpSocket::bind("0.0.0.0:51821")
+        .await
+        .expect("failed to bind udp");
+    let server_addr = cfg.peer.endpoint
+        .expect("missing endpoint in client config");
+
+    println!("client up: shaking hands with: {}", server_addr);
 
     let mut out_buf: [u8; 1504] = [0; 1504];
     match tunnel.encapsulate(&[], &mut out_buf) {
         TunnResult::WriteToNetwork(data) => {
-            socket.send_to(data, server_addr).await.unwrap();
+            socket.send_to(data, &server_addr).await.unwrap();
             println!("handshake shoke");
         }
         _ => {}
@@ -56,7 +52,7 @@ async fn main() {
             Ok(n) = dev.read(&mut tun_buf) => {
                 match tunnel.encapsulate(&tun_buf[..n], &mut out_buf) {
                     TunnResult::WriteToNetwork(data) => {
-                        socket.send_to(data, server_addr).await.unwrap();
+                        socket.send_to(data, &server_addr).await.unwrap();
                         println!("tun intercepted, encrypted and sent to serv via udp");
                     }
                     
@@ -73,7 +69,7 @@ async fn main() {
 
                     TunnResult::WriteToNetwork(data) => {
                         println!("handshake reply sent");
-                        socket.send_to(data, server_addr).await.unwrap();
+                        socket.send_to(data, &server_addr).await.unwrap();
                     }
 
                     TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),

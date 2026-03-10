@@ -25,3 +25,5 @@ pub fn load(path: &str) -> Result<Config, String> {
     let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
     toml::from_str(&text).map_err(|e| e.to_string())
 }
+
+//pub fn makeConfig() later

@@ -1,0 +1,8 @@
+[interface]
+private_key = "base64_private_key_here"
+address = "10.0.0.2"
+
+[peer]
+public_key = "base64_server_public_key_here"
+endpoint = "127.0.0.1:51820"
+allowed_ips = "0.0.0.0/0"
