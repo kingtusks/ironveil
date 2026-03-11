@@ -6,6 +6,8 @@ use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::Configuration;
 
+/*reminder for me to route all the traffic through the tunnel */
+
 #[tokio::main]
 async fn main() {
     let cfg = config::load("config/client.toml")
