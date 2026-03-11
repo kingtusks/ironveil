@@ -57,6 +57,46 @@ pub fn reset_dns(tun_interface: &str) -> Result<(), String> {
     Ok(())
 }
 
+pub fn enable_kill_switch(real_interface: &str) -> Result<(), String> {
+    let output = Command::new("netsh")
+        .args([
+            "advfirewall", "firewall", "add", "rule",
+            "name=IronVeilKillSwitch",
+            "dir=out",
+            "action=block",
+            &format!("interface={}", real_interface),
+            "enable=yes"
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("kill switch enable failed: {}", err));
+    }
+
+    println!("kill switch enabled");
+    Ok(())
+}
+
+pub fn disable_kill_switch() -> Result<(), String> {
+    let output = Command::new("netsh")
+        .args([
+            "advfirewall", "firewall", "delete", "rule",
+            "name=IronVeilKillSwitch"
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("kill switch disable failed: {}", err));
+    }
+
+    println!("kill switch disabled");
+    Ok(())
+}
+
 fn run_route(args: &[&str]) -> Result<(), String> {
     let output = Command::new("route")
         .args(args)
