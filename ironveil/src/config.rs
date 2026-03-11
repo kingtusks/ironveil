@@ -25,7 +25,6 @@ pub struct Peer {
 #[derive(Deserialize, Serialize)]
 pub struct Routing {
     pub gateway: String,
-    pub tun_interface: String,
     pub tun_name: String,
     pub dns_server: String,
     pub real_interface: String,
@@ -35,5 +34,3 @@ pub fn load(path: &str) -> Result<Config, String> {
     let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
     toml::from_str(&text).map_err(|e| e.to_string())
 }
-
-//pub fn makeConfig() later for readability

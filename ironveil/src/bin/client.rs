@@ -48,12 +48,15 @@ async fn main() {
         _ => {}
     }
 
-    let routing = cfg.routing.expect("missing routing in client.toml");
+    let routing = cfg.routing
+        .expect("missing routing in client.toml");
+    let tun_interface = routing::get_tun_interface_index(&routing.tun_name)
+        .expect("failed to get tun interface index");
 
     routing::add_routes(
         &server_addr,
         &routing.gateway,
-        &routing.tun_interface,
+        &tun_interface.to_string(),
     ).expect("failed to add routes");
 
     routing::set_dns(

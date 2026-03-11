@@ -85,6 +85,35 @@ pub fn disable_kill_switch() -> Result<(), String> {
     Ok(())
 }
 
+pub fn get_tun_interface_index(name: &str) -> Result<u32, String> {
+    #[cfg(unix)]
+    {
+        let name_cstr = std::ffi::CString::new(name)
+            .map_err(|e| e.to_string())?;
+
+        let index = unsafe {libc::if_nametoindex(name_cstr.as_ptr())};
+
+        if index == 0 {
+            Err(format!("interface {} not found", name))
+        } else {
+            Ok(index)
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("powershell")
+            .args(["-Command", &format!("(Get-NetAdapter -Name '{}').ifIndex", name)])
+            .output()
+            .map_err(|e| e.to_string())?;
+
+        String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .parse::<u32>()
+            .map_err(|e| e.to_string())
+    }    
+}
+
 fn run_netsh(args: &[&str]) -> Result<(), String> {
     let output = Command::new("netsh")
         .args(args)
