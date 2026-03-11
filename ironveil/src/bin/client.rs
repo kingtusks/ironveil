@@ -1,6 +1,7 @@
 use ironveil::config;
 use ironveil::crypto::{public_key_from_base64, secret_key_from_base64};
 use ironveil::tunnel::create_tunnel;
+use ironveil::routing;
 use boringtun::noise::TunnResult;
 use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -45,6 +46,14 @@ async fn main() {
         }
         _ => {}
     }
+
+    let routing = cfg.routing.expect("missing routing in client.toml");
+
+    routing::add_routes(
+        &server_addr,
+        &routing.gateway,
+        &routing.tun_interface,
+    ).expect("failed to add routes");
 
     let mut tun_buf: [u8; 1504] = [0; 1504];
     let mut udp_buf: [u8; 1504] = [0; 1504];

@@ -5,6 +5,7 @@ use std::fs;
 pub struct Config {
     pub interface: Interface,
     pub peer: Peer,
+    pub routing: Option<Routing>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -21,9 +22,15 @@ pub struct Peer {
     pub allowed_ips: String, 
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct Routing {
+    pub gateway: String,
+    pub tun_interface: String,
+}
+
 pub fn load(path: &str) -> Result<Config, String> {
     let text = fs::read_to_string(path).map_err(|e| e.to_string())?;
     toml::from_str(&text).map_err(|e| e.to_string())
 }
 
-//pub fn makeConfig() later
+//pub fn makeConfig() later for readability
