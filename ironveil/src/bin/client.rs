@@ -57,12 +57,14 @@ async fn main() {
     ).expect("failed to add routes");
 
     routing::set_dns(
-        &routing.tun_interface,
-        &routing.dns_server
+        &routing.tun_name,
+        &routing.dns_server,
     ).expect("failed to set dns");
 
-    routing::enable_kill_switch(&routing.real_interface)
+    /* (VPS) 
+    routing::enable_kill_switch(&server_addr)
         .expect("failed to enable kill switch");
+    */
 
     let tun_iface = routing.tun_interface.clone();
     let gateway = routing.gateway.clone();
@@ -74,7 +76,7 @@ async fn main() {
         println!("shutting down and cleaning up routes");
         routing::remove_routes(&server, &gateway, &tun_iface).ok();
         routing::reset_dns(&tun_iface).ok();
-        routing::disable_kill_switch().ok();
+        //routing::disable_kill_switch().ok(); (VPS)
         println!("done cya");
         std::process::exit(0); 
     });

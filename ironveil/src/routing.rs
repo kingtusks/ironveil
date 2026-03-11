@@ -2,7 +2,6 @@ use std::process::Command;
 
 pub fn add_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result<(), String> {
     run_route(&["add", server_ip, "mask", "255.255.255.255", gateway])?;
-    
     run_route(&["add", "0.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
     run_route(&["add", "128.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
 
@@ -57,43 +56,46 @@ pub fn reset_dns(tun_interface: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn enable_kill_switch(real_interface: &str) -> Result<(), String> {
-    let output = Command::new("netsh")
-        .args([
-            "advfirewall", "firewall", "add", "rule",
-            "name=IronVeilKillSwitch",
-            "dir=out",
-            "action=block",
-            &format!("interface={}", real_interface),
-            "enable=yes"
-        ])
-        .output()
-        .map_err(|e| e.to_string())?;
+pub fn enable_kill_switch(server_ip: &str) -> Result<(), String> {
+    run_netsh(&[
+        "advfirewall", "firewall", "add", "rule",
+        "name=IronVeilKillSwitchBlock",
+        "dir=out", "action=block",
+        "remoteip=any",
+        "enable=yes"
+    ])?;
 
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("kill switch enable failed: {}", err));
-    }
+    run_netsh(&[
+        "advfirewall", "firewall", "add", "rule",
+        "name=IronVeilKillSwitchAllow",
+        "dir=out", "action=allow",
+        &format!("remoteip={}", server_ip),
+        "enable=yes"
+    ])?;
 
     println!("kill switch enabled");
     Ok(())
 }
 
+
 pub fn disable_kill_switch() -> Result<(), String> {
+    run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchBlock"])?;
+    run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchAllow"])?;
+    println!("kill switch disabled");
+    Ok(())
+}
+
+fn run_netsh(args: &[&str]) -> Result<(), String> {
     let output = Command::new("netsh")
-        .args([
-            "advfirewall", "firewall", "delete", "rule",
-            "name=IronVeilKillSwitch"
-        ])
+        .args(args)
         .output()
         .map_err(|e| e.to_string())?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("kill switch disable failed: {}", err));
+        let out = String::from_utf8_lossy(&output.stdout);
+        return Err(format!("{} {}", err, out));
     }
-
-    println!("kill switch disabled");
     Ok(())
 }
 

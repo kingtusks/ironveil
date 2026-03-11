@@ -26,6 +26,7 @@ pub struct Peer {
 pub struct Routing {
     pub gateway: String,
     pub tun_interface: String,
+    pub tun_name: String,
     pub dns_server: String,
     pub real_interface: String,
 }
