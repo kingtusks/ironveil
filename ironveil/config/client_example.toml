@@ -10,3 +10,4 @@ allowed_ips = "0.0.0.0/0"
 [routing]
 gateway = "gateway_ip_here"
 tun_interface = "client_tun_index_here"
+dns_server = "ip_of_server_here"

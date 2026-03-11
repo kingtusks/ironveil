@@ -26,6 +26,7 @@ pub struct Peer {
 pub struct Routing {
     pub gateway: String,
     pub tun_interface: String,
+    pub dns_server: String,
 }
 
 pub fn load(path: &str) -> Result<Config, String> {

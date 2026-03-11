@@ -3,11 +3,12 @@ use ironveil::crypto::{public_key_from_base64, secret_key_from_base64};
 use ironveil::tunnel::create_tunnel;
 use ironveil::routing;
 use boringtun::noise::TunnResult;
+use tokio::signal;
 use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::Configuration;
 
-/*reminder for me to route all the traffic through the tunnel */
+/*reminder for me to work on DNS leak prevention thanks*/
 
 #[tokio::main]
 async fn main() {
@@ -55,6 +56,24 @@ async fn main() {
         &routing.tun_interface,
     ).expect("failed to add routes");
 
+    routing::set_dns(
+        &routing.tun_interface,
+        &routing.dns_server
+    ).expect("failed to set dns");
+
+    let tun_iface = routing.tun_interface.clone();
+    let gateway = routing.gateway.clone();
+    let server = server_addr.clone();
+
+    tokio::spawn(async move { //dis is for cleanups when down
+        signal::ctrl_c().await.expect("failed to listen for ctrl+c");
+        println!("shutting down and cleaning up routes");
+        routing::remove_routes(&server, &gateway, &tun_iface).ok();
+        routing::reset_dns(&tun_iface).ok();
+        println!("done cya");
+        std::process::exit(0); 
+    });
+
     let mut tun_buf: [u8; 1504] = [0; 1504];
     let mut udp_buf: [u8; 1504] = [0; 1504];
 
@@ -89,5 +108,4 @@ async fn main() {
             }
         }
     }
-
 }
