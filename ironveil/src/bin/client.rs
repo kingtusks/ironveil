@@ -61,15 +61,20 @@ async fn main() {
         &routing.dns_server
     ).expect("failed to set dns");
 
+    routing::enable_kill_switch(&routing.real_interface)
+        .expect("failed to enable kill switch");
+
     let tun_iface = routing.tun_interface.clone();
     let gateway = routing.gateway.clone();
     let server = server_addr.clone();
-
-    tokio::spawn(async move { //dis is for cleanups when down
+    
+    //dis is for cleanups when down
+    tokio::spawn(async move {
         signal::ctrl_c().await.expect("failed to listen for ctrl+c");
         println!("shutting down and cleaning up routes");
         routing::remove_routes(&server, &gateway, &tun_iface).ok();
         routing::reset_dns(&tun_iface).ok();
+        routing::disable_kill_switch().ok();
         println!("done cya");
         std::process::exit(0); 
     });
