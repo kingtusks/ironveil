@@ -52,9 +52,10 @@ async fn main() {
         .expect("missing routing in client.toml");
     let tun_interface = routing::get_tun_interface_index(&routing.tun_name)
         .expect("failed to get tun interface index");
+    let server_ip = server_addr.split(':').next().unwrap();
 
     routing::add_routes(
-        &server_addr,
+        &server_ip,
         &routing.gateway,
         &tun_interface.to_string(),
     ).expect("failed to add routes");
@@ -64,22 +65,25 @@ async fn main() {
         &routing.dns_server,
     ).expect("failed to set dns");
 
-    /* (VPS) 
-    routing::enable_kill_switch(&server_addr)
+    // (VPS) 
+    routing::enable_kill_switch(&server_ip)
         .expect("failed to enable kill switch");
-    */
 
-    let tun_iface = routing.tun_interface.clone();
+    let tun_name = routing.tun_name.clone();
     let gateway = routing.gateway.clone();
     let server = server_addr.clone();
     
     //dis is for cleanups when down
+    //(flag)
     tokio::spawn(async move {
         signal::ctrl_c().await.expect("failed to listen for ctrl+c");
         println!("shutting down and cleaning up routes");
-        routing::remove_routes(&server, &gateway, &tun_iface).ok();
-        routing::reset_dns(&tun_iface).ok();
-        //routing::disable_kill_switch().ok(); (VPS)
+        let tun_index = routing::get_tun_interface_index(&tun_name)
+            .unwrap_or(0)
+            .to_string();
+        routing::remove_routes(&server, &gateway, &tun_index).ok();
+        routing::reset_dns(&tun_name).ok();
+        routing::disable_kill_switch().ok(); //(VPS)
         println!("done cya");
         std::process::exit(0); 
     });
@@ -92,10 +96,12 @@ async fn main() {
             Ok(n) = dev.read(&mut tun_buf) => {
                 match tunnel.encapsulate(&tun_buf[..n], &mut out_buf) {
                     TunnResult::WriteToNetwork(data) => {
-                        socket.send_to(data, &server_addr).await.unwrap();
-                        println!("tun intercepted, encrypted and sent to serv via udp");
+                        if let Err(e) = socket.send_to(data, &server_addr).await {
+                            eprintln!("send error: {}", e);
+                        } else {
+                            println!("tun intercepted, encrypted and sent to serv via udp");
+                        }
                     }
-                    
                     TunnResult::Err(e) => eprintln!("encapsulate err: {:?}", e),
                     _ => {}
                 }
@@ -104,12 +110,16 @@ async fn main() {
                 match tunnel.decapsulate(None, &udp_buf[..n], &mut out_buf) {
                     TunnResult::WriteToTunnelV4(data, _) => {
                         println!("wrote decrypted ip packet into tun");
-                        dev.write_all(data).await.unwrap();
+                        if let Err(e) = dev.write_all(data).await {
+                            eprintln!("tun write error: {}", e);
+                        }
                     }
 
                     TunnResult::WriteToNetwork(data) => {
                         println!("handshake reply sent");
-                        socket.send_to(data, &server_addr).await.unwrap();
+                        if let Err(e) = socket.send_to(data, &server_addr).await {
+                            eprintln!("send error: {}", e);
+                        }
                     }
 
                     TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),
