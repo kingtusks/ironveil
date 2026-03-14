@@ -35,9 +35,9 @@ async fn main() {
 
     println!("server listening on port {}", port);
     
-    let mut tun_buf: [u8; 1504] = [0; 1504];
-    let mut udp_buf: [u8; 1504] = [0; 1504];
-    let mut out_buf: [u8; 1504] = [0; 1504];
+    let mut tun_buf: [u8; 65535] = [0; 65535];
+    let mut udp_buf: [u8; 65535] = [0; 65535];
+    let mut out_buf: [u8; 65535] = [0; 65535];
     let mut peer_addr = None;
 
     loop {

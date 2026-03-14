@@ -13,9 +13,9 @@ pub fn add_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result
 
     #[cfg(unix)]
     {
-        run_cmd("ip", &["route", "add", server_ip, "via", gateway])?;
-        run_cmd("ip", &["route", "add", "0.0.0.0/1", "dev", tun_interface])?;
-        run_cmd("ip", &["route", "add", "128.0.0.0/1", "dev", tun_interface])?;
+        run_cmd("ip", &["route", "replace", server_ip, "via", gateway])?;
+        run_cmd("ip", &["route", "replace", "0.0.0.0/1", "dev", tun_interface])?;
+        run_cmd("ip", &["route", "replace", "128.0.0.0/1", "dev", tun_interface])?;
     }
 
     println!("routes added, all traffic going through tunnel");

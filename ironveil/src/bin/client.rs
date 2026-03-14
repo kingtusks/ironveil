@@ -8,12 +8,11 @@ use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::Configuration;
 
-/*reminder for me to work on DNS leak prevention thanks*/
-
 #[tokio::main]
 async fn main() {
     let cfg = config::load("config/client.toml")
         .expect("failed to load client config");
+
     let secret = secret_key_from_base64(&cfg.interface.private_key)
         .expect("invalid private key");
     let peer_public = public_key_from_base64(&cfg.peer.public_key)
@@ -31,15 +30,17 @@ async fn main() {
 
     let mut dev = tun::create_as_async(&tun_config)
         .expect("failed to make tun device");
+
     let socket = UdpSocket::bind("0.0.0.0:51821")
         .await
         .expect("failed to bind udp");
+
     let server_addr = cfg.peer.endpoint
         .expect("missing endpoint in client config");
 
     println!("client up: shaking hands with: {}", server_addr);
 
-    let mut out_buf: [u8; 1504] = [0; 1504];
+    let mut out_buf: [u8; 65535] = [0; 65535];
     match tunnel.encapsulate(&[], &mut out_buf) {
         TunnResult::WriteToNetwork(data) => {
             socket.send_to(data, &server_addr).await.unwrap();
@@ -48,48 +49,54 @@ async fn main() {
         _ => {}
     }
 
-    let routing = cfg.routing
-        .expect("missing routing in client.toml");
-    let tun_interface = routing::get_tun_interface_index(&routing.tun_name)
-        .expect("failed to get tun interface index");
+    let routing = cfg.routing.expect("missing [routing] in client.toml");
     let server_ip = server_addr.split(':').next().unwrap();
 
-    routing::add_routes(
-        &server_ip,
-        &routing.gateway,
-        &tun_interface.to_string(),
-    ).expect("failed to add routes");
+    #[cfg(unix)]
+    routing::add_routes(&server_ip, &routing.gateway, &routing.tun_name)
+        .expect("failed to add routes");
 
-    routing::set_dns(
-        &routing.tun_name,
-        &routing.dns_server,
-    ).expect("failed to set dns");
+    #[cfg(windows)]
+    {
+        let tun_index = routing::get_tun_interface_index(&routing.tun_name)
+            .expect("failed to get tun interface index");
+        routing::add_routes(&server_ip, &routing.gateway, &tun_index.to_string())
+            .expect("failed to add routes");
+    }
 
-    // (VPS) 
-    routing::enable_kill_switch(&server_ip)
-        .expect("failed to enable kill switch");
+    routing::set_dns(&routing.tun_name, &routing.dns_server)
+        .expect("failed to set dns");
+
+    //routing::enable_kill_switch(&server_ip)
+    //    .expect("failed to enable kill switch");
 
     let tun_name = routing.tun_name.clone();
     let gateway = routing.gateway.clone();
     let server = server_addr.clone();
-    
-    //dis is for cleanups when down
-    //(flag)
+
     tokio::spawn(async move {
         signal::ctrl_c().await.expect("failed to listen for ctrl+c");
-        println!("shutting down and cleaning up routes");
-        let tun_index = routing::get_tun_interface_index(&tun_name)
-            .unwrap_or(0)
-            .to_string();
-        routing::remove_routes(&server, &gateway, &tun_index).ok();
+        println!("shutting down, cleaning up...");
+
+        #[cfg(unix)]
+        routing::remove_routes(&server.split(':').next().unwrap(), &gateway, &tun_name).ok();
+
+        #[cfg(windows)]
+        {
+            let tun_index = routing::get_tun_interface_index(&tun_name)
+                .unwrap_or(0)
+                .to_string();
+            routing::remove_routes(&server.split(':').next().unwrap(), &gateway, &tun_index).ok();
+        }
+
         routing::reset_dns(&tun_name).ok();
-        routing::disable_kill_switch().ok(); //(VPS)
+        //routing::disable_kill_switch().ok();
         println!("done cya");
-        std::process::exit(0); 
+        std::process::exit(0);
     });
 
-    let mut tun_buf: [u8; 1504] = [0; 1504];
-    let mut udp_buf: [u8; 1504] = [0; 1504];
+    let mut tun_buf: [u8; 65535] = [0; 65535];
+    let mut udp_buf: [u8; 65535] = [0; 65535];
 
     loop {
         tokio::select! {
@@ -114,14 +121,12 @@ async fn main() {
                             eprintln!("tun write error: {}", e);
                         }
                     }
-
                     TunnResult::WriteToNetwork(data) => {
                         println!("handshake reply sent");
                         if let Err(e) = socket.send_to(data, &server_addr).await {
                             eprintln!("send error: {}", e);
                         }
                     }
-
                     TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),
                     _ => {}
                 }
