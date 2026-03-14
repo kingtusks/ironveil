@@ -16,6 +16,7 @@ pub fn add_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result
         run_cmd("ip", &["route", "replace", server_ip, "via", gateway])?;
         run_cmd("ip", &["route", "replace", "0.0.0.0/1", "dev", tun_interface])?;
         run_cmd("ip", &["route", "replace", "128.0.0.0/1", "dev", tun_interface])?;
+        run_cmd("ip6tables", &["-I", "OUTPUT", "-j", "DROP"])?;
     }
 
     println!("routes added, all traffic going through tunnel");
@@ -35,6 +36,7 @@ pub fn remove_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Res
         run_cmd("ip", &["route", "del", server_ip, "via", gateway])?;
         run_cmd("ip", &["route", "del", "0.0.0.0/1", "dev", tun_interface])?;
         run_cmd("ip", &["route", "del", "128.0.0.0/1", "dev", tun_interface])?;
+        run_cmd("ip6tables", &["-D", "OUTPUT", "-j", "DROP"])?;
     }
 
     println!("routes removed");
