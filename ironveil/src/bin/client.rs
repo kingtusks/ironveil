@@ -8,6 +8,7 @@ use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::Configuration;
 
+//reminder to fix the killswitch  
 #[tokio::main]
 async fn main() {
     let cfg = config::load("config/client.toml")
@@ -67,8 +68,8 @@ async fn main() {
     routing::set_dns(&routing.tun_name, &routing.dns_server)
         .expect("failed to set dns");
 
-    //routing::enable_kill_switch(&server_ip)
-    //    .expect("failed to enable kill switch");
+    routing::enable_kill_switch(&server_ip)
+        .expect("failed to enable kill switch");
 
     let tun_name = routing.tun_name.clone();
     let gateway = routing.gateway.clone();
@@ -76,7 +77,7 @@ async fn main() {
 
     tokio::spawn(async move {
         signal::ctrl_c().await.expect("failed to listen for ctrl+c");
-        println!("shutting down, cleaning up...");
+        println!("shutting down, cleaning up");
 
         #[cfg(unix)]
         routing::remove_routes(&server.split(':').next().unwrap(), &gateway, &tun_name).ok();
@@ -90,7 +91,7 @@ async fn main() {
         }
 
         routing::reset_dns(&tun_name).ok();
-        //routing::disable_kill_switch().ok();
+        routing::disable_kill_switch(&server.split(':').next().unwrap()).ok();
         println!("done cya");
         std::process::exit(0);
     });

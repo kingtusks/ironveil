@@ -127,16 +127,18 @@ pub fn enable_kill_switch(server_ip: &str) -> Result<(), String> {
 
     #[cfg(unix)]
     {
-        run_cmd("iptables", &["-I", "OUTPUT", "-j", "DROP"])?;
+        run_cmd("iptables", &["-I", "OUTPUT", "-o", "lo", "-j", "ACCEPT"])?;
         run_cmd("iptables", &["-I", "OUTPUT", "-d", server_ip, "-j", "ACCEPT"])?;
         run_cmd("iptables", &["-I", "OUTPUT", "-o", "tun+", "-j", "ACCEPT"])?;
+        run_cmd("iptables", &["-A", "OUTPUT", "-j", "DROP"])?;
+        run_cmd("ip6tables", &["-I", "OUTPUT", "-j", "DROP"])?;
     }
 
     println!("kill switch enabled");
     Ok(())
 }
 
-pub fn disable_kill_switch() -> Result<(), String> {
+pub fn disable_kill_switch(server_ip: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
         run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchBlock"])?;
@@ -145,8 +147,11 @@ pub fn disable_kill_switch() -> Result<(), String> {
 
     #[cfg(unix)]
     {
-        run_cmd("iptables", &["-D", "OUTPUT", "-j", "DROP"])?;
+        run_cmd("iptables", &["-D", "OUTPUT", "-o", "lo", "-j", "ACCEPT"])?;
+        run_cmd("iptables", &["-D", "OUTPUT", "-d", server_ip, "-j", "ACCEPT"])?;
         run_cmd("iptables", &["-D", "OUTPUT", "-o", "tun+", "-j", "ACCEPT"])?;
+        run_cmd("iptables", &["-D", "OUTPUT", "-j", "DROP"])?;
+        run_cmd("ip6tables", &["-D", "OUTPUT", "-j", "DROP"])?;
     }
 
     println!("kill switch disabled");
