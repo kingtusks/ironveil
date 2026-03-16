@@ -13,13 +13,16 @@ use tun::Configuration;
 async fn main() {
     let cfg = config::load("config/client.toml")
         .expect("failed to load client config");
-
     let secret = secret_key_from_base64(&cfg.interface.private_key)
         .expect("invalid private key");
     let peer_public = public_key_from_base64(&cfg.peer.public_key)
         .expect("invalid peer public key");
 
-    let mut tunnel = create_tunnel(secret, peer_public)
+    let psk = cfg.peer.preshared_key
+        .as_deref()
+        .map(|s| ironveil::crypto::decode_key(s).expect("invalid preshared key"));
+
+    let mut tunnel = create_tunnel(secret, peer_public, psk)
         .expect("tunnel (client) couldn't be made");
 
     let mut tun_config = Configuration::default();

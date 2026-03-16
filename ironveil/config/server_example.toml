@@ -5,4 +5,5 @@ port = 51820
 
 [peer]
 public_key = "base64_client_public_key_here"
+preshared_key = "base64_32_byte_key_here"
 allowed_ips = "10.0.0.2/32"

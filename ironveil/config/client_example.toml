@@ -4,6 +4,7 @@ address = "10.0.0.2"
 
 [peer]
 public_key = "base64_server_public_key_here"
+preshared_key = "base64_32_byte_key_here"
 endpoint = "server_ip_here:51820"
 allowed_ips = "0.0.0.0/0"
 

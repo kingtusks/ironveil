@@ -19,7 +19,8 @@ pub struct Interface {
 pub struct Peer {
     pub public_key: String, //encoded w base64
     pub endpoint: Option<String>, 
-    pub allowed_ips: String, 
+    pub allowed_ips: String,
+    pub preshared_key: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]

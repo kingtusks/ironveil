@@ -14,11 +14,13 @@ async fn main() {
         .expect("invalid private key");
     let peer_public = public_key_from_base64(&cfg.peer.public_key)
         .expect("invalid peer public key");
+    
+    let psk = cfg.peer.preshared_key
+        .as_deref()
+        .map(|s| ironveil::crypto::decode_key(s).expect("invalid preshared key"));
 
-    let mut tunnel = create_tunnel(
-        secret,
-        peer_public,
-    ).expect("tunnel (server) couldnt be made");
+    let mut tunnel = create_tunnel(secret, peer_public, psk)
+        .expect("tunnel (server) couldn't be made");
 
     let mut config = Configuration::default();
     config
