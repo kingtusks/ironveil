@@ -1,6 +1,7 @@
-ironveil/target/
+target/
 ironveil/config/server.toml
 ironveil/config/client.toml
+backend/Cargo.lock
 .env
 *.pem
 *.key
