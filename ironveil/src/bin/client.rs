@@ -8,7 +8,8 @@ use tokio::net::UdpSocket;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tun::Configuration;
 
-//reminder to fix the killswitch  
+//reminder to do obfuscation next 
+
 #[tokio::main]
 async fn main() {
     let cfg = config::load("config/client.toml")

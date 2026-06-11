@@ -14,7 +14,7 @@ async fn main() {
         .expect("invalid private key");
     let peer_public = public_key_from_base64(&cfg.peer.public_key)
         .expect("invalid peer public key");
-    
+
     let psk = cfg.peer.preshared_key
         .as_deref()
         .map(|s| ironveil::crypto::decode_key(s).expect("invalid preshared key"));
@@ -36,7 +36,7 @@ async fn main() {
         .expect("failed to bind udp");
 
     println!("server listening on port {}", port);
-    
+
     let mut tun_buf: [u8; 65535] = [0; 65535];
     let mut udp_buf: [u8; 65535] = [0; 65535];
     let mut out_buf: [u8; 65535] = [0; 65535];
@@ -48,8 +48,11 @@ async fn main() {
                 if let Some(addr) = peer_addr {
                     match tunnel.encapsulate(&tun_buf[..n], &mut out_buf) {
                         TunnResult::WriteToNetwork(data) => {
-                            socket.send_to(data, addr).await.unwrap();
-                            println!("tun > encrypted > udp");
+                            if let Err(e) = socket.send_to(data, addr).await {
+                                eprintln!("send error: {}", e);
+                            } else {
+                                println!("tun > encrypted > udp");
+                            }
                         }
                         TunnResult::Err(e) => eprintln!("encapsulate error: {:?}", e),
                         _ => {}
@@ -61,11 +64,15 @@ async fn main() {
                 match tunnel.decapsulate(None, &udp_buf[..n], &mut out_buf) {
                     TunnResult::WriteToTunnelV4(data, _) => {
                         println!("udp > decrypted > tun");
-                        dev.write_all(data).await.unwrap();
+                        if let Err(e) = dev.write_all(data).await {
+                            eprintln!("tun write error: {}", e);
+                        }
                     }
                     TunnResult::WriteToNetwork(data) => {
                         println!("handshake response sent");
-                        socket.send_to(data, addr).await.unwrap();
+                        if let Err(e) = socket.send_to(data, addr).await {
+                            eprintln!("send error: {}", e);
+                        }
                     }
                     TunnResult::Err(e) => eprintln!("decapsulate error: {:?}", e),
                     _ => {}
