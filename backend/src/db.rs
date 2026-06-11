@@ -4,7 +4,6 @@ use sqlx::{PgPool, postgres::PgPoolOptions};
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub http: reqwest::Client,
 }
 
 pub async fn create_pool() -> AppState {
@@ -16,5 +15,5 @@ pub async fn create_pool() -> AppState {
         .await
         .expect("failed to connect to postgres");
 
-    AppState {pool, http: reqwest::Client::new(),}
+    AppState {pool}
 }
