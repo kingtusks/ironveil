@@ -3,12 +3,20 @@ use std::process::Command;
 pub fn add_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
+        let if_index = get_tun_interface_index(tun_interface)?.to_string();
         println!("adding route: {} via {}", server_ip, gateway);
         run_route(&["add", server_ip, "mask", "255.255.255.255", gateway])?;
-        println!("adding 0.0.0.0/1 via if {}", tun_interface);
-        run_route(&["add", "0.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
-        println!("adding 128.0.0.0/1 via if {}", tun_interface);
-        run_route(&["add", "128.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
+        println!("adding 0.0.0.0/1 via if {} (index {})", tun_interface, if_index);
+        run_route(&["add", "0.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", &if_index])?;
+        println!("adding 128.0.0.0/1 via if {} (index {})", tun_interface, if_index);
+        run_route(&["add", "128.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", &if_index])?;
+        run_netsh(&[
+            "advfirewall", "firewall", "add", "rule",
+            "name=IronVeilIPv6Block",
+            "dir=out", "action=block",
+            "remoteip=::/0",
+            "enable=yes",
+        ])?;
     }
 
     #[cfg(unix)]
@@ -26,9 +34,11 @@ pub fn add_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result
 pub fn remove_routes(server_ip: &str, gateway: &str, tun_interface: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
+        let if_index = get_tun_interface_index(tun_interface)?.to_string();
         run_route(&["delete", server_ip, "mask", "255.255.255.255", gateway])?;
-        run_route(&["delete", "0.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
-        run_route(&["delete", "128.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", tun_interface])?;
+        run_route(&["delete", "0.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", &if_index])?;
+        run_route(&["delete", "128.0.0.0", "mask", "128.0.0.0", "0.0.0.0", "if", &if_index])?;
+        run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilIPv6Block"])?;
     }
 
     #[cfg(unix)]
@@ -110,17 +120,23 @@ pub fn enable_kill_switch(server_ip: &str) -> Result<(), String> {
     {
         run_netsh(&[
             "advfirewall", "firewall", "add", "rule",
-            "name=IronVeilKillSwitchBlock",
-            "dir=out", "action=block",
-            "remoteip=any",
+            "name=IronVeilKillSwitchAllowLoopback",
+            "dir=out", "action=allow",
+            "remoteip=127.0.0.0/8",
             "enable=yes",
         ])?;
-
         run_netsh(&[
             "advfirewall", "firewall", "add", "rule",
             "name=IronVeilKillSwitchAllow",
             "dir=out", "action=allow",
             &format!("remoteip={}", server_ip),
+            "enable=yes",
+        ])?;
+        run_netsh(&[
+            "advfirewall", "firewall", "add", "rule",
+            "name=IronVeilKillSwitchBlock",
+            "dir=out", "action=block",
+            "remoteip=any",
             "enable=yes",
         ])?;
     }
@@ -141,8 +157,9 @@ pub fn enable_kill_switch(server_ip: &str) -> Result<(), String> {
 pub fn disable_kill_switch(server_ip: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
-        run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchBlock"])?;
+        run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchAllowLoopback"])?;
         run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchAllow"])?;
+        run_netsh(&["advfirewall", "firewall", "delete", "rule", "name=IronVeilKillSwitchBlock"])?;
     }
 
     #[cfg(unix)]
@@ -184,7 +201,7 @@ pub fn get_tun_interface_index(name: &str) -> Result<u32, String> {
 }
 
 #[allow(dead_code)]
-fn run_cmd(program: &str, args: &[&str]) -> Result<(), String> { 
+fn run_cmd(program: &str, args: &[&str]) -> Result<(), String> {
     let output = Command::new(program)
         .args(args)
         .output()
