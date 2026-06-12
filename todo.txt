@@ -1,0 +1,3 @@
+1. make keygen.psk automatically update client/server with the keys (for convenience)
+2. make a funky lil frontend so i can do stuff
+3. dashboard
