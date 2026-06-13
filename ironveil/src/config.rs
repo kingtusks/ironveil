@@ -10,14 +10,14 @@ pub struct Config {
 
 #[derive(Deserialize, Serialize)]
 pub struct Interface {
-    pub private_key: String, //encoded w base64
+    pub private_key: String,
     pub address: String,     
-    pub port: Option<u16>,  //listen port
+    pub port: Option<u16>, //listen port
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Peer {
-    pub public_key: String, //encoded w base64
+    pub public_key: String,
     pub endpoint: Option<String>, 
     pub allowed_ips: String,
     pub preshared_key: Option<String>,
